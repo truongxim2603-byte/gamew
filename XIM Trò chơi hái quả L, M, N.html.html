@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khu Vườn Chữ Cái L-M-N</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background: linear-gradient(to bottom, #dff9fb, #c7ecee); 
+            font-family: 'Comic Sans MS', cursive, sans-serif; 
+            overflow: hidden; 
+            touch-action: manipulation;
+        }
+        
+        .floating { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        
+        .fruit { 
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            cursor: pointer;
+            z-index: 10;
+            user-select: none;
+        }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+        .success-flash { animation: flash 0.5s; }
+        @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between min-h-screen p-4">
+
+    <!-- Header -->
+    <div class="w-full flex justify-between items-center z-20 mt-4 max-w-4xl">
+        <div class="bg-white/90 p-4 rounded-3xl shadow-xl border-4 border-yellow-400">
+            <h2 class="text-3xl font-bold text-orange-500" id="task">Đang tải...</h2>
+        </div>
+        <div class="bg-white/90 p-4 rounded-3xl shadow-xl border-4 border-blue-400">
+            <h2 class="text-3xl font-bold text-blue-600">Điểm: <span id="score">0</span></h2>
+        </div>
+    </div>
+
+    <!-- Game Board -->
+    <div id="game-container" class="relative flex-grow w-full flex items-center justify-center flex-wrap gap-8 p-10"></div>
+
+    <!-- Basket Area -->
+    <div id="basket" class="mb-10 w-40 h-32 bg-amber-800 rounded-b-3xl border-8 border-amber-900 flex items-center justify-center text-6xl shadow-2xl relative z-10">
+        🧺
+    </div>
+
+    <!-- Feedback Popup -->
+    <div id="feedback" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl font-bold text-white p-8 rounded-3xl shadow-2xl z-50"></div>
+
+    <script>
+        const allPossibleLetters = ['L', 'M', 'N', 'A', 'B', 'H', 'K', 'X', 'O'];
+        let targetLetter = '';
+        let score = 0;
+        let fruitsLeft = 0;
+
+        function initGame() {
+            const container = document.getElementById('game-container');
+            container.innerHTML = '';
+            
+            // Chọn mục tiêu
+            targetLetter = ['L', 'M', 'N'][Math.floor(Math.random() * 3)];
+            document.getElementById('task').innerText = "Hãy hái quả có chữ " + targetLetter;
+            
+            // Tạo 10 quả, đảm bảo có ít nhất 4 quả chứa mục tiêu
+            let fruitPool = [];
+            for(let i=0; i<4; i++) fruitPool.push(targetLetter);
+            for(let i=0; i<6; i++) fruitPool.push(allPossibleLetters[Math.floor(Math.random() * allPossibleLetters.length)]);
+            
+            // Trộn danh sách quả
+            fruitPool.sort(() => Math.random() - 0.5);
+            
+            fruitsLeft = 0;
+            fruitPool.forEach((letter, index) => {
+                if (letter === targetLetter) fruitsLeft++;
+                
+                const fruit = document.createElement('div');
+                fruit.className = "fruit w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold shadow-xl border-4 border-white text-white floating hover:scale-110 active:scale-95";
+                fruit.style.backgroundColor = ['#FF6347', '#FFD700', '#FF8C00', '#98FB98'][index % 4];
+                fruit.innerText = letter;
+                fruit.dataset.letter = letter;
+                fruit.onclick = (e) => checkAnswer(e.target, letter);
+                container.appendChild(fruit);
+            });
+        }
+
+        async function checkAnswer(el, letter) {
+            if (letter === targetLetter) {
+                // Correct
+                score += 10;
+                document.getElementById('score').innerText = score;
+                
+                // Animation logic
+                const basket = document.getElementById('basket');
+                const rect = el.getBoundingClientRect();
+                const basketRect = basket.getBoundingClientRect();
+                
+                el.style.position = 'fixed';
+                el.style.left = rect.left + 'px';
+                el.style.top = rect.top + 'px';
+                el.style.zIndex = '100';
+                
+                // Bay vào giỏ
+                setTimeout(() => {
+                    el.style.left = (basketRect.left + basketRect.width/2 - 48) + 'px';
+                    el.style.top = (basketRect.top + 20) + 'px';
+                    el.style.transform = 'scale(0.2)';
+                    el.style.opacity = '0';
+                }, 50);
+
+                new Audio('https://www.myinstants.com/media/sounds/applause.mp3').play();
+                showFeedback("Giỏi lắm!", "#22c55e");
+                
+                setTimeout(() => {
+                    el.remove();
+                    fruitsLeft--;
+                    if (fruitsLeft === 0) {
+                        setTimeout(() => {
+                            alert("Tuyệt quá! Bé đã hái hết chữ " + targetLetter + " rồi!");
+                            initGame();
+                        }, 500);
+                    }
+                }, 600);
+
+            } else {
+                // Incorrect
+                el.classList.add('shake');
+                showFeedback("Thử lại nhé!", "#ef4444");
+                setTimeout(() => el.classList.remove('shake'), 500);
+            }
+        }
+
+        function showFeedback(text, color) {
+            const msg = document.getElementById('feedback');
+            msg.innerText = text;
+            msg.style.backgroundColor = color;
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 800);
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
