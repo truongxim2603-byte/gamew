@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bé Học Chữ H - K (Phiên Bản Vui Nhộn)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; background-color: #f0f9ff; }
+        .letter-card { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .letter-card:active { transform: scale(0.92); }
+        .success-pulse { animation: pulse 0.6s ease-out; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .bg-gradient-sky { background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <div class="max-w-xl w-full text-center space-y-6">
+        <header class="bg-white p-6 rounded-3xl shadow-xl shadow-sky-100 border-b-4 border-sky-200">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-sky-600 mb-2">Bé học chữ h - k</h1>
+            <p class="text-gray-500 font-medium italic">Vui học mỗi ngày!</p>
+        </header>
+
+        <div class="flex justify-center gap-2">
+            <button onclick="changeLevel(1)" id="btn-lvl-1" class="px-6 py-2 rounded-full font-bold bg-sky-500 text-white shadow-lg transform transition active:scale-95">Màn 1</button>
+            <button onclick="changeLevel(2)" id="btn-lvl-2" class="px-6 py-2 rounded-full font-bold bg-white text-gray-500 shadow-md border-2 border-gray-200 hover:bg-sky-50">Màn 2</button>
+            <button onclick="changeLevel(3)" id="btn-lvl-3" class="px-6 py-2 rounded-full font-bold bg-white text-gray-500 shadow-md border-2 border-gray-200 hover:bg-sky-50">Màn 3</button>
+        </div>
+
+        <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-sky-400">
+            <div id="instruction" class="text-xl md:text-2xl font-bold text-gray-700 mb-6">
+                Hãy tìm chữ <span id="targetDisplay" class="text-4xl text-sky-600 bg-sky-100 px-4 py-1 rounded-xl">?</span>
+            </div>
+            
+            <div id="gameGrid" class="grid grid-cols-2 gap-4">
+                <!-- Buttons will be generated here -->
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm text-lg font-bold text-gray-600">
+            <span>Điểm: <span id="score" class="text-sky-500">0</span></span>
+            <button onclick="resetScore()" class="text-sm text-red-400 hover:text-red-600">Làm mới</button>
+        </div>
+    </div>
+
+    <div id="feedback" class="hidden fixed top-4 right-4 px-6 py-3 rounded-full text-white font-bold shadow-2xl z-50"></div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            if (type === 'correct') {
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            } else {
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            }
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        let score = 0;
+        let currentLevel = 1;
+        let target = '';
+
+        const levels = {
+            1: { type: 'letter', options: ['h', 'k', 'b', 'd', 'm', 'n'] },
+            2: { type: 'word', options: ['hoa', 'hươu', 'kẹo', 'kiến', 'bà', 'cá'] },
+            3: { type: 'fill', options: ['h', 'k', 'b', 'c'] }
+        };
+
+        function generateBoard() {
+            const grid = document.getElementById('gameGrid');
+            const targetDisplay = document.getElementById('targetDisplay');
+            const instruction = document.getElementById('instruction');
+            grid.innerHTML = '';
+            
+            if (currentLevel === 1) {
+                target = Math.random() > 0.5 ? 'h' : 'k';
+                targetDisplay.textContent = target;
+                let choices = ['h', 'k', 'b', 'd', 'm', 'n'].sort(() => Math.random() - 0.5);
+                choices.forEach(char => createBtn(char, char === target));
+            } 
+            else if (currentLevel === 2) {
+                const words = ['hoa', 'hươu', 'kẹo', 'kiến'];
+                target = words[Math.floor(Math.random() * words.length)];
+                targetDisplay.textContent = target;
+                let choices = [...words, 'bà', 'cá'].sort(() => Math.random() - 0.5);
+                choices.forEach(word => createBtn(word, word === target));
+            }
+            else {
+                const patterns = ['h_a', 'h_ươi', 'k_o', 'k_ến'];
+                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                target = pattern.startsWith('h') ? 'h' : 'k';
+                targetDisplay.innerHTML = `<span class="text-sky-500">${pattern}</span>`;
+                ['h', 'k', 'b', 'c'].sort(() => Math.random() - 0.5).forEach(char => createBtn(char, char === target));
+            }
+        }
+
+        function createBtn(val, isCorrect) {
+            const btn = document.createElement('button');
+            btn.className = "letter-card bg-white p-6 rounded-2xl shadow-md border-2 border-sky-100 hover:border-sky-300 text-3xl font-black text-gray-700";
+            btn.textContent = val;
+            btn.onclick = () => checkAnswer(isCorrect, btn);
+            document.getElementById('gameGrid').appendChild(btn);
+        }
+
+        function checkAnswer(isCorrect, element) {
+            if (isCorrect) {
+                playSound('correct');
+                score += 10;
+                document.getElementById('score').textContent = score;
+                element.classList.add('bg-green-100', 'border-green-400', 'success-pulse');
+                showFeedback("Giỏi quá! 🎉", "bg-green-500");
+                setTimeout(generateBoard, 800);
+            } else {
+                playSound('wrong');
+                element.classList.add('bg-red-50', 'border-red-300');
+                showFeedback("Chưa đúng rồi! Thử lại nhé! 😊", "bg-red-500");
+                setTimeout(() => element.classList.remove('bg-red-50', 'border-red-300'), 500);
+            }
+        }
+
+        function changeLevel(lvl) {
+            currentLevel = lvl;
+            [1,2,3].forEach(n => {
+                const btn = document.getElementById(`btn-lvl-${n}`);
+                if(n === lvl) btn.className = "px-6 py-2 rounded-full font-bold bg-sky-500 text-white shadow-lg transform transition active:scale-95";
+                else btn.className = "px-6 py-2 rounded-full font-bold bg-white text-gray-500 shadow-md border-2 border-gray-200 hover:bg-sky-50";
+            });
+            generateBoard();
+        }
+
+        function showFeedback(msg, color) {
+            const fb = document.getElementById('feedback');
+            fb.textContent = msg;
+            fb.className = `fixed top-4 right-4 px-6 py-3 rounded-full text-white font-bold shadow-2xl z-50 ${color}`;
+            fb.classList.remove('hidden');
+            setTimeout(() => fb.classList.add('hidden'), 2000);
+        }
+
+        function resetScore() {
+            score = 0;
+            document.getElementById('score').textContent = '0';
+        }
+
+        window.onload = generateBoard;
+    </script>
+</body>
+</html>
